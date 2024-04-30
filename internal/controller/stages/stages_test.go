@@ -46,7 +46,6 @@ func TestNewReconciler(t *testing.T) {
 	// Assert that all overridable behaviors were initialized to a default:
 	// Loop guard:
 	require.NotNil(t, r.nowFn)
-	require.NotNil(t, r.hasNonTerminalPromotionsFn)
 	require.NotNil(t, r.listPromosFn)
 	// Freight verification:
 	require.NotNil(t, r.startVerificationFn)
@@ -292,14 +291,6 @@ func TestSyncControlFlowStage(t *testing.T) {
 }
 
 func TestSyncNormalStage(t *testing.T) {
-	noNonTerminalPromotionsFn := func(
-		context.Context,
-		string,
-		string,
-	) (bool, error) {
-		return false, nil
-	}
-
 	testCases := []struct {
 		name       string
 		stage      *kargoapi.Stage
@@ -315,15 +306,7 @@ func TestSyncNormalStage(t *testing.T) {
 		{
 			name:  "error checking for non-terminal promotions",
 			stage: &kargoapi.Stage{},
-			reconciler: &reconciler{
-				hasNonTerminalPromotionsFn: func(
-					context.Context,
-					string,
-					string,
-				) (bool, error) {
-					return false, errors.New("something went wrong")
-				},
-			},
+			reconciler: &reconciler{},
 			assertions: func(
 				t *testing.T,
 				recorder *fakeevent.EventRecorder,
@@ -345,13 +328,6 @@ func TestSyncNormalStage(t *testing.T) {
 			name:  "non-terminal promotions found",
 			stage: &kargoapi.Stage{},
 			reconciler: &reconciler{
-				hasNonTerminalPromotionsFn: func(
-					context.Context,
-					string,
-					string,
-				) (bool, error) {
-					return true, nil
-				},
 			},
 			assertions: func(
 				t *testing.T,
@@ -395,8 +371,7 @@ func TestSyncNormalStage(t *testing.T) {
 				},
 			},
 			reconciler: &reconciler{
-				hasNonTerminalPromotionsFn: noNonTerminalPromotionsFn,
-				appHealth:                  &mockAppHealthEvaluator{},
+				appHealth: &mockAppHealthEvaluator{},
 				startVerificationFn: func(
 					context.Context,
 					*kargoapi.Stage,
@@ -472,8 +447,8 @@ func TestSyncNormalStage(t *testing.T) {
 				},
 			},
 			reconciler: &reconciler{
-				hasNonTerminalPromotionsFn: noNonTerminalPromotionsFn,
-				appHealth:                  &mockAppHealthEvaluator{},
+
+				appHealth: &mockAppHealthEvaluator{},
 				getFreightFn: func(
 					context.Context,
 					client.Client,
@@ -510,8 +485,8 @@ func TestSyncNormalStage(t *testing.T) {
 				},
 			},
 			reconciler: &reconciler{
-				hasNonTerminalPromotionsFn: noNonTerminalPromotionsFn,
-				appHealth:                  &mockAppHealthEvaluator{},
+
+				appHealth: &mockAppHealthEvaluator{},
 				startVerificationFn: func(
 					_ context.Context,
 					_ *kargoapi.Stage,
@@ -592,8 +567,8 @@ func TestSyncNormalStage(t *testing.T) {
 				},
 			},
 			reconciler: &reconciler{
-				hasNonTerminalPromotionsFn: noNonTerminalPromotionsFn,
-				appHealth:                  &mockAppHealthEvaluator{},
+
+				appHealth: &mockAppHealthEvaluator{},
 				startVerificationFn: func(
 					context.Context,
 					*kargoapi.Stage,
@@ -660,8 +635,8 @@ func TestSyncNormalStage(t *testing.T) {
 				},
 			},
 			reconciler: &reconciler{
-				hasNonTerminalPromotionsFn: noNonTerminalPromotionsFn,
-				appHealth:                  &mockAppHealthEvaluator{},
+
+				appHealth: &mockAppHealthEvaluator{},
 				getFreightFn: func(
 					context.Context,
 					client.Client,
@@ -739,8 +714,8 @@ func TestSyncNormalStage(t *testing.T) {
 				},
 			},
 			reconciler: &reconciler{
-				hasNonTerminalPromotionsFn: noNonTerminalPromotionsFn,
-				appHealth:                  &mockAppHealthEvaluator{},
+
+				appHealth: &mockAppHealthEvaluator{},
 				getVerificationInfoFn: func(_ context.Context, _ *kargoapi.Stage) (*kargoapi.VerificationInfo, error) {
 					return &kargoapi.VerificationInfo{
 						Phase:   kargoapi.VerificationPhaseError,
@@ -810,8 +785,8 @@ func TestSyncNormalStage(t *testing.T) {
 				},
 			},
 			reconciler: &reconciler{
-				hasNonTerminalPromotionsFn: noNonTerminalPromotionsFn,
-				appHealth:                  &mockAppHealthEvaluator{},
+
+				appHealth: &mockAppHealthEvaluator{},
 				getAnalysisRunFn: func(
 					context.Context,
 					client.Client,
@@ -908,8 +883,8 @@ func TestSyncNormalStage(t *testing.T) {
 				},
 			},
 			reconciler: &reconciler{
-				hasNonTerminalPromotionsFn: noNonTerminalPromotionsFn,
-				appHealth:                  &mockAppHealthEvaluator{},
+
+				appHealth: &mockAppHealthEvaluator{},
 				getAnalysisRunFn: func(
 					context.Context,
 					client.Client,
@@ -986,8 +961,8 @@ func TestSyncNormalStage(t *testing.T) {
 				},
 			},
 			reconciler: &reconciler{
-				hasNonTerminalPromotionsFn: noNonTerminalPromotionsFn,
-				appHealth:                  &mockAppHealthEvaluator{},
+
+				appHealth: &mockAppHealthEvaluator{},
 				verifyFreightInStageFn: func(context.Context, string, string, string) (bool, error) {
 					return false, errors.New("something went wrong")
 				},
@@ -1028,8 +1003,8 @@ func TestSyncNormalStage(t *testing.T) {
 				},
 			},
 			reconciler: &reconciler{
-				hasNonTerminalPromotionsFn: noNonTerminalPromotionsFn,
-				appHealth:                  &mockAppHealthEvaluator{},
+
+				appHealth: &mockAppHealthEvaluator{},
 				verifyFreightInStageFn: func(context.Context, string, string, string) (bool, error) {
 					return true, nil
 				},
@@ -1094,8 +1069,8 @@ func TestSyncNormalStage(t *testing.T) {
 				},
 			},
 			reconciler: &reconciler{
-				hasNonTerminalPromotionsFn: noNonTerminalPromotionsFn,
-				appHealth:                  &mockAppHealthEvaluator{},
+
+				appHealth: &mockAppHealthEvaluator{},
 				verifyFreightInStageFn: func(context.Context, string, string, string) (bool, error) {
 					return true, nil
 				},
@@ -1154,8 +1129,8 @@ func TestSyncNormalStage(t *testing.T) {
 				},
 			},
 			reconciler: &reconciler{
-				hasNonTerminalPromotionsFn: noNonTerminalPromotionsFn,
-				appHealth:                  &mockAppHealthEvaluator{},
+
+				appHealth: &mockAppHealthEvaluator{},
 				verifyFreightInStageFn: func(context.Context, string, string, string) (bool, error) {
 					return true, nil
 				},
@@ -1227,8 +1202,8 @@ func TestSyncNormalStage(t *testing.T) {
 				},
 			},
 			reconciler: &reconciler{
-				hasNonTerminalPromotionsFn: noNonTerminalPromotionsFn,
-				appHealth:                  &mockAppHealthEvaluator{},
+
+				appHealth: &mockAppHealthEvaluator{},
 				getFreightFn: func(
 					context.Context,
 					client.Client,
@@ -1286,8 +1261,8 @@ func TestSyncNormalStage(t *testing.T) {
 				},
 			},
 			reconciler: &reconciler{
-				hasNonTerminalPromotionsFn: noNonTerminalPromotionsFn,
-				appHealth:                  &mockAppHealthEvaluator{},
+
+				appHealth: &mockAppHealthEvaluator{},
 				verifyFreightInStageFn: func(context.Context, string, string, string) (bool, error) {
 					return true, nil
 				},
@@ -1344,8 +1319,8 @@ func TestSyncNormalStage(t *testing.T) {
 				},
 			},
 			reconciler: &reconciler{
-				hasNonTerminalPromotionsFn: noNonTerminalPromotionsFn,
-				appHealth:                  &mockAppHealthEvaluator{},
+
+				appHealth: &mockAppHealthEvaluator{},
 				verifyFreightInStageFn: func(context.Context, string, string, string) (bool, error) {
 					return true, nil
 				},
@@ -1416,8 +1391,8 @@ func TestSyncNormalStage(t *testing.T) {
 				},
 			},
 			reconciler: &reconciler{
-				hasNonTerminalPromotionsFn: noNonTerminalPromotionsFn,
-				appHealth:                  &mockAppHealthEvaluator{},
+
+				appHealth: &mockAppHealthEvaluator{},
 				verifyFreightInStageFn: func(context.Context, string, string, string) (bool, error) {
 					return true, nil
 				},
@@ -1523,7 +1498,7 @@ func TestSyncNormalStage(t *testing.T) {
 				},
 			},
 			reconciler: &reconciler{
-				hasNonTerminalPromotionsFn: noNonTerminalPromotionsFn,
+
 				appHealth: &mockAppHealthEvaluator{
 					Health: &kargoapi.Health{
 						Status: kargoapi.HealthStateHealthy,
@@ -1654,7 +1629,6 @@ func TestSyncNormalStage(t *testing.T) {
 				},
 			},
 			reconciler: &reconciler{
-				hasNonTerminalPromotionsFn: noNonTerminalPromotionsFn,
 				appHealth: &mockAppHealthEvaluator{
 					Health: &kargoapi.Health{
 						Status: kargoapi.HealthStateHealthy,
@@ -2076,79 +2050,6 @@ func TestClearApprovals(t *testing.T) {
 					&kargoapi.Stage{},
 				),
 			)
-		})
-	}
-}
-
-func TestHasNonTerminalPromotions(t *testing.T) {
-	testCases := []struct {
-		name       string
-		reconciler *reconciler
-		assertions func(*testing.T, bool, error)
-	}{
-		{
-			name: "error listing Promotions",
-			reconciler: &reconciler{
-				listPromosFn: func(
-					context.Context,
-					client.ObjectList,
-					...client.ListOption,
-				) error {
-					return errors.New("something went wrong")
-				},
-			},
-			assertions: func(t *testing.T, _ bool, err error) {
-				require.Error(t, err)
-				require.Contains(t, err.Error(), "something went wrong")
-			},
-		},
-		{
-			name: "has non-terminal Promotions",
-			reconciler: &reconciler{
-				listPromosFn: func(
-					_ context.Context,
-					objList client.ObjectList,
-					_ ...client.ListOption,
-				) error {
-					promos, ok := objList.(*kargoapi.PromotionList)
-					require.True(t, ok)
-					promos.Items = []kargoapi.Promotion{{}}
-					return nil
-				},
-			},
-			assertions: func(t *testing.T, result bool, err error) {
-				require.NoError(t, err)
-				require.True(t, result)
-			},
-		},
-		{
-			name: "does not have non-terminal Promotions",
-			reconciler: &reconciler{
-				listPromosFn: func(
-					_ context.Context,
-					objList client.ObjectList,
-					_ ...client.ListOption,
-				) error {
-					promos, ok := objList.(*kargoapi.PromotionList)
-					require.True(t, ok)
-					promos.Items = []kargoapi.Promotion{}
-					return nil
-				},
-			},
-			assertions: func(t *testing.T, result bool, err error) {
-				require.NoError(t, err)
-				require.False(t, result)
-			},
-		},
-	}
-	for _, testCase := range testCases {
-		t.Run(testCase.name, func(t *testing.T) {
-			result, err := testCase.reconciler.hasNonTerminalPromotions(
-				context.Background(),
-				"fake-namespace",
-				"fake-stage",
-			)
-			testCase.assertions(t, result, err)
 		})
 	}
 }
