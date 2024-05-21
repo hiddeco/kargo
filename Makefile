@@ -67,7 +67,7 @@ lint-go:
 .PHONY: lint-proto
 lint-proto:
 	# Vendor go dependencies to build protobuf definitions
-	go mod vendor
+	go work vendor
 	buf lint api --error-format=$(BUF_LINT_ERROR_FORMAT)
 
 .PHONY: lint-charts

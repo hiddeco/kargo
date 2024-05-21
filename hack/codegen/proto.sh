@@ -32,10 +32,10 @@ function clean() {
 function main() {
   echo "Vendor dependencies for protobuf code generation..."
   go mod tidy
-  go mod vendor
+  go work vendor
 
   echo "Generate protobuf code from Kubebuilder structs..."
-  GOPATH=${GOPATH} go-to-protobuf \
+  go-to-protobuf \
     --go-header-file=./hack/boilerplate.go.txt \
     --packages="$(IFS=, ; echo "${API_PKGS[*]}")" \
     --apimachinery-packages="$(IFS=, ; echo "${APIMACHINERY_PKGS[*]}")" \

@@ -40,7 +40,7 @@ function get_module_version() {
   # Output of `go list -f '{{.Module}}' "${package}"` is formatted in "<package> <version>",
   # so treat output as an array and print the second element - version.
   IFS=" " read -r -a module <<< "$(go list -f '{{.Module}}' "${package}")"
-  echo "${module[1]}"
+  echo "${module[${#module[@]}-1]}"
 }
 
 function main() {
