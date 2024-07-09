@@ -147,7 +147,7 @@ type GitCommit struct {
 // FreightStatus describes a piece of Freight's most recently observed state.
 type FreightStatus struct {
 	// PromotedTo describes the Stages to which this Freight has been promoted.
-	PromotedTo map[string]PromotedStage `json:"promotedTo,omitempty"`
+	PromotedTo map[string]PromotedStage `json:"promotedTo,omitempty" protobuf:"bytes,3,rep,name=promotedTo" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	// VerifiedIn describes the Stages in which this Freight has been verified
 	// through promotion and subsequent health checks.
 	VerifiedIn map[string]VerifiedStage `json:"verifiedIn,omitempty" protobuf:"bytes,1,rep,name=verifiedIn" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`

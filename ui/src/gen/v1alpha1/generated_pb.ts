@@ -1756,6 +1756,13 @@ export class FreightSources extends Message<FreightSources> {
  */
 export class FreightStatus extends Message<FreightStatus> {
   /**
+   * PromotedTo describes the Stages to which this Freight has been promoted.
+   *
+   * @generated from field: map<string, github.com.akuity.kargo.api.v1alpha1.PromotedStage> promotedTo = 3;
+   */
+  promotedTo: { [key: string]: PromotedStage } = {};
+
+  /**
    * VerifiedIn describes the Stages in which this Freight has been verified
    * through promotion and subsequent health checks.
    *
@@ -1781,6 +1788,7 @@ export class FreightStatus extends Message<FreightStatus> {
   static readonly runtime: typeof proto2 = proto2;
   static readonly typeName = "github.com.akuity.kargo.api.v1alpha1.FreightStatus";
   static readonly fields: FieldList = proto2.util.newFieldList(() => [
+    { no: 3, name: "promotedTo", kind: "map", K: 9 /* ScalarType.STRING */, V: {kind: "message", T: PromotedStage} },
     { no: 1, name: "verifiedIn", kind: "map", K: 9 /* ScalarType.STRING */, V: {kind: "message", T: VerifiedStage} },
     { no: 2, name: "approvedFor", kind: "map", K: 9 /* ScalarType.STRING */, V: {kind: "message", T: ApprovedStage} },
   ]);
@@ -3303,6 +3311,39 @@ export class ProjectStatus extends Message<ProjectStatus> {
 
   static equals(a: ProjectStatus | PlainMessage<ProjectStatus> | undefined, b: ProjectStatus | PlainMessage<ProjectStatus> | undefined): boolean {
     return proto2.util.equals(ProjectStatus, a, b);
+  }
+}
+
+/**
+ * PromotedStage describes a Stage to which Freight has been promoted.
+ *
+ * @generated from message github.com.akuity.kargo.api.v1alpha1.PromotedStage
+ */
+export class PromotedStage extends Message<PromotedStage> {
+  constructor(data?: PartialMessage<PromotedStage>) {
+    super();
+    proto2.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto2 = proto2;
+  static readonly typeName = "github.com.akuity.kargo.api.v1alpha1.PromotedStage";
+  static readonly fields: FieldList = proto2.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PromotedStage {
+    return new PromotedStage().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): PromotedStage {
+    return new PromotedStage().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): PromotedStage {
+    return new PromotedStage().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: PromotedStage | PlainMessage<PromotedStage> | undefined, b: PromotedStage | PlainMessage<PromotedStage> | undefined): boolean {
+    return proto2.util.equals(PromotedStage, a, b);
   }
 }
 

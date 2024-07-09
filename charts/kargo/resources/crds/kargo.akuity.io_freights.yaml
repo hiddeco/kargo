@@ -191,6 +191,14 @@ spec:
                   might wish to promote a piece of Freight to a given Stage without
                   transiting the entire pipeline.
                 type: object
+              promotedTo:
+                additionalProperties:
+                  description: PromotedStage describes a Stage to which Freight has
+                    been promoted.
+                  type: object
+                description: PromotedTo describes the Stages to which this Freight
+                  has been promoted.
+                type: object
               verifiedIn:
                 additionalProperties:
                   description: VerifiedStage describes a Stage in which Freight has

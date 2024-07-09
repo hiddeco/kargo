@@ -534,6 +534,9 @@ message FreightSources {
 
 // FreightStatus describes a piece of Freight's most recently observed state.
 message FreightStatus {
+  // PromotedTo describes the Stages to which this Freight has been promoted.
+  map<string, PromotedStage> promotedTo = 3;
+
   // VerifiedIn describes the Stages in which this Freight has been verified
   // through promotion and subsequent health checks.
   map<string, VerifiedStage> verifiedIn = 1;
@@ -1069,6 +1072,10 @@ message ProjectStatus {
   // preventing the Project from being reconciled. i.e. If the Phase field has a
   // value of CreationFailed, this field can be expected to explain why.
   optional string message = 2;
+}
+
+// PromotedStage describes a Stage to which Freight has been promoted.
+message PromotedStage {
 }
 
 // Promotion represents a request to transition a particular Stage into a
