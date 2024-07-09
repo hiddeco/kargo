@@ -220,6 +220,13 @@ export class AnalysisTemplateReference extends Message<AnalysisTemplateReference
  * @generated from message github.com.akuity.kargo.api.v1alpha1.ApprovedStage
  */
 export class ApprovedStage extends Message<ApprovedStage> {
+  /**
+   * ApprovedAt is the time at which this Freight was approved for the Stage.
+   *
+   * @generated from field: optional k8s.io.apimachinery.pkg.apis.meta.v1.Time approvedAt = 1;
+   */
+  approvedAt?: Time;
+
   constructor(data?: PartialMessage<ApprovedStage>) {
     super();
     proto2.util.initPartial(data, this);
@@ -228,6 +235,7 @@ export class ApprovedStage extends Message<ApprovedStage> {
   static readonly runtime: typeof proto2 = proto2;
   static readonly typeName = "github.com.akuity.kargo.api.v1alpha1.ApprovedStage";
   static readonly fields: FieldList = proto2.util.newFieldList(() => [
+    { no: 1, name: "approvedAt", kind: "message", T: Time, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ApprovedStage {
@@ -3320,6 +3328,14 @@ export class ProjectStatus extends Message<ProjectStatus> {
  * @generated from message github.com.akuity.kargo.api.v1alpha1.PromotedStage
  */
 export class PromotedStage extends Message<PromotedStage> {
+  /**
+   * PromotedAt is the time at which this Freight was (attempted to be)
+   * promoted to the Stage.
+   *
+   * @generated from field: optional k8s.io.apimachinery.pkg.apis.meta.v1.Time lastPromotionAt = 1;
+   */
+  lastPromotionAt?: Time;
+
   constructor(data?: PartialMessage<PromotedStage>) {
     super();
     proto2.util.initPartial(data, this);
@@ -3328,6 +3344,7 @@ export class PromotedStage extends Message<PromotedStage> {
   static readonly runtime: typeof proto2 = proto2;
   static readonly typeName = "github.com.akuity.kargo.api.v1alpha1.PromotedStage";
   static readonly fields: FieldList = proto2.util.newFieldList(() => [
+    { no: 1, name: "lastPromotionAt", kind: "message", T: Time, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PromotedStage {
@@ -4481,6 +4498,13 @@ export class VerificationInfo extends Message<VerificationInfo> {
  * @generated from message github.com.akuity.kargo.api.v1alpha1.VerifiedStage
  */
 export class VerifiedStage extends Message<VerifiedStage> {
+  /**
+   * VerifiedAt is the time at which this Freight was verified in the Stage.
+   *
+   * @generated from field: optional k8s.io.apimachinery.pkg.apis.meta.v1.Time verifiedAt = 1;
+   */
+  verifiedAt?: Time;
+
   constructor(data?: PartialMessage<VerifiedStage>) {
     super();
     proto2.util.initPartial(data, this);
@@ -4489,6 +4513,7 @@ export class VerifiedStage extends Message<VerifiedStage> {
   static readonly runtime: typeof proto2 = proto2;
   static readonly typeName = "github.com.akuity.kargo.api.v1alpha1.VerifiedStage";
   static readonly fields: FieldList = proto2.util.newFieldList(() => [
+    { no: 1, name: "verifiedAt", kind: "message", T: Time, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): VerifiedStage {
