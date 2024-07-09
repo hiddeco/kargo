@@ -159,14 +159,24 @@ type FreightStatus struct {
 }
 
 // PromotedStage describes a Stage to which Freight has been promoted.
-type PromotedStage struct{}
+type PromotedStage struct {
+	// PromotedAt is the time at which this Freight was (attempted to be)
+	// promoted to the Stage.
+	PromotedAt metav1.Time `json:"lastPromotionAt,omitempty" protobuf:"bytes,1,opt,name=lastPromotionAt"`
+}
 
 // VerifiedStage describes a Stage in which Freight has been verified.
-type VerifiedStage struct{}
+type VerifiedStage struct {
+	// VerifiedAt is the time at which this Freight was verified in the Stage.
+	VerifiedAt metav1.Time `json:"verifiedAt,omitempty" protobuf:"bytes,1,opt,name=verifiedAt"`
+}
 
 // ApprovedStage describes a Stage for which Freight has been (manually)
 // approved.
-type ApprovedStage struct{}
+type ApprovedStage struct {
+	// ApprovedAt is the time at which this Freight was approved for the Stage.
+	ApprovedAt metav1.Time `json:"approvedAt,omitempty" protobuf:"bytes,1,opt,name=approvedAt"`
+}
 
 // +kubebuilder:object:root=true
 
