@@ -163,6 +163,7 @@ type reconciler struct {
 		namespace string,
 		freightName string,
 		stageName string,
+		verifiedAt time.Time,
 	) (bool, error)
 
 	patchFreightStatusFn func(
@@ -612,7 +613,9 @@ func (r *reconciler) syncControlFlowStage(
 			if newStatus.VerifiedIn == nil {
 				newStatus.VerifiedIn = map[string]kargoapi.VerifiedStage{}
 			}
-			newStatus.VerifiedIn[stage.Name] = kargoapi.VerifiedStage{}
+			newStatus.VerifiedIn[stage.Name] = kargoapi.VerifiedStage{
+				VerifiedAt: metav1.NewTime(finishTime),
+			}
 			if err := r.patchFreightStatusFn(ctx, &af, newStatus); err != nil {
 				return status, fmt.Errorf(
 					"error marking Freight %q in namespace %q as verified in Stage %q: %w",
@@ -790,6 +793,7 @@ func (r *reconciler) syncNormalStage(
 					stage.Namespace,
 					freight.Name,
 					stage.Name,
+					currentVI.FinishTime.Time,
 				)
 				if err != nil {
 					return status, fmt.Errorf(
@@ -1232,6 +1236,7 @@ func (r *reconciler) verifyFreightInStage(
 	namespace string,
 	freightName string,
 	stageName string,
+	verifiedAt time.Time,
 ) (bool, error) {
 	logger := logging.LoggerFromContext(ctx).WithValues("freight", freightName)
 
@@ -1260,18 +1265,19 @@ func (r *reconciler) verifyFreightInStage(
 		)
 	}
 
-	newStatus := *freight.Status.DeepCopy()
-	if newStatus.VerifiedIn == nil {
-		newStatus.VerifiedIn = map[string]kargoapi.VerifiedStage{}
-	}
-
 	// Only try to mark as verified in this Stage if not already the case.
-	if _, ok := newStatus.VerifiedIn[stageName]; ok {
+	if _, ok := freight.Status.VerifiedIn[stageName]; ok {
 		logger.Debug("Freight already marked as verified in Stage")
 		return false, nil
 	}
 
-	newStatus.VerifiedIn[stageName] = kargoapi.VerifiedStage{}
+	newStatus := *freight.Status.DeepCopy()
+	if newStatus.VerifiedIn == nil {
+		newStatus.VerifiedIn = map[string]kargoapi.VerifiedStage{}
+	}
+	newStatus.VerifiedIn[stageName] = kargoapi.VerifiedStage{
+		VerifiedAt: metav1.NewTime(verifiedAt),
+	}
 	if err = r.patchFreightStatusFn(ctx, freight, newStatus); err != nil {
 		return false, err
 	}

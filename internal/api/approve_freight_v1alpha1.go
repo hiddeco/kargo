@@ -7,6 +7,7 @@ import (
 
 	"connectrpc.com/connect"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -108,7 +109,9 @@ func (s *server) ApproveFreight(
 		return &connect.Response[svcv1alpha1.ApproveFreightResponse]{}, nil
 	}
 
-	newStatus.ApprovedFor[stageName] = kargoapi.ApprovedStage{}
+	newStatus.ApprovedFor[stageName] = kargoapi.ApprovedStage{
+		ApprovedAt: metav1.Now(),
+	}
 
 	if err := s.patchFreightStatusFn(ctx, freight, newStatus); err != nil {
 		return nil, fmt.Errorf("patch status: %w", err)

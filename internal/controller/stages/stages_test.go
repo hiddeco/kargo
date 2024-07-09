@@ -1038,7 +1038,7 @@ func TestSyncNormalStage(t *testing.T) {
 					return status, nil
 				},
 				appHealth: &mockAppHealthEvaluator{},
-				verifyFreightInStageFn: func(context.Context, string, string, string) (bool, error) {
+				verifyFreightInStageFn: func(context.Context, string, string, string, time.Time) (bool, error) {
 					return false, errors.New("something went wrong")
 				},
 			},
@@ -1093,7 +1093,7 @@ func TestSyncNormalStage(t *testing.T) {
 					return status, nil
 				},
 				appHealth: &mockAppHealthEvaluator{},
-				verifyFreightInStageFn: func(context.Context, string, string, string) (bool, error) {
+				verifyFreightInStageFn: func(context.Context, string, string, string, time.Time) (bool, error) {
 					return false, nil
 				},
 				isAutoPromotionPermittedFn: func(
@@ -1158,7 +1158,7 @@ func TestSyncNormalStage(t *testing.T) {
 					return status, nil
 				},
 				appHealth: &mockAppHealthEvaluator{},
-				verifyFreightInStageFn: func(context.Context, string, string, string) (bool, error) {
+				verifyFreightInStageFn: func(context.Context, string, string, string, time.Time) (bool, error) {
 					return false, nil
 				},
 				isAutoPromotionPermittedFn: func(
@@ -1222,7 +1222,7 @@ func TestSyncNormalStage(t *testing.T) {
 					return status, nil
 				},
 				appHealth: &mockAppHealthEvaluator{},
-				verifyFreightInStageFn: func(context.Context, string, string, string) (bool, error) {
+				verifyFreightInStageFn: func(context.Context, string, string, string, time.Time) (bool, error) {
 					return false, nil
 				},
 				isAutoPromotionPermittedFn: func(
@@ -1304,7 +1304,7 @@ func TestSyncNormalStage(t *testing.T) {
 				) (*kargoapi.Freight, error) {
 					return nil, nil
 				},
-				verifyFreightInStageFn: func(context.Context, string, string, string) (bool, error) {
+				verifyFreightInStageFn: func(context.Context, string, string, string, time.Time) (bool, error) {
 					return true, nil
 				},
 				isAutoPromotionPermittedFn: func(
@@ -1374,7 +1374,7 @@ func TestSyncNormalStage(t *testing.T) {
 					return status, nil
 				},
 				appHealth: &mockAppHealthEvaluator{},
-				verifyFreightInStageFn: func(context.Context, string, string, string) (bool, error) {
+				verifyFreightInStageFn: func(context.Context, string, string, string, time.Time) (bool, error) {
 					return false, nil
 				},
 				isAutoPromotionPermittedFn: func(
@@ -1451,7 +1451,7 @@ func TestSyncNormalStage(t *testing.T) {
 					return status, nil
 				},
 				appHealth: &mockAppHealthEvaluator{},
-				verifyFreightInStageFn: func(context.Context, string, string, string) (bool, error) {
+				verifyFreightInStageFn: func(context.Context, string, string, string, time.Time) (bool, error) {
 					return false, nil
 				},
 				isAutoPromotionPermittedFn: func(
@@ -1542,7 +1542,7 @@ func TestSyncNormalStage(t *testing.T) {
 					return status, nil
 				},
 				appHealth: &mockAppHealthEvaluator{},
-				verifyFreightInStageFn: func(context.Context, string, string, string) (bool, error) {
+				verifyFreightInStageFn: func(context.Context, string, string, string, time.Time) (bool, error) {
 					return false, nil
 				},
 				isAutoPromotionPermittedFn: func(
@@ -1631,7 +1631,9 @@ func TestSyncNormalStage(t *testing.T) {
 							},
 							VerificationHistory: []kargoapi.VerificationInfo{
 								{
-									Phase: kargoapi.VerificationPhaseSuccessful,
+									Phase:      kargoapi.VerificationPhaseSuccessful,
+									StartTime:  ptr.To(metav1.NewTime(fakeTime)),
+									FinishTime: ptr.To(metav1.NewTime(fakeTime)),
 								},
 							},
 						},
@@ -1665,7 +1667,7 @@ func TestSyncNormalStage(t *testing.T) {
 						},
 					}, nil
 				},
-				verifyFreightInStageFn: func(context.Context, string, string, string) (bool, error) {
+				verifyFreightInStageFn: func(context.Context, string, string, string, time.Time) (bool, error) {
 					// No updates are performed
 					return false, nil
 				},
@@ -1687,7 +1689,9 @@ func TestSyncNormalStage(t *testing.T) {
 						},
 						Status: kargoapi.FreightStatus{
 							VerifiedIn: map[string]kargoapi.VerifiedStage{
-								"fake-stage": {},
+								"fake-stage": {
+									VerifiedAt: metav1.NewTime(fakeTime),
+								},
 							},
 						},
 					}, nil
@@ -1809,7 +1813,7 @@ func TestSyncNormalStage(t *testing.T) {
 						},
 					}, nil
 				},
-				verifyFreightInStageFn: func(context.Context, string, string, string) (bool, error) {
+				verifyFreightInStageFn: func(context.Context, string, string, string, time.Time) (bool, error) {
 					return true, nil
 				},
 				isAutoPromotionPermittedFn: func(
@@ -2602,6 +2606,7 @@ func TestVerifyFreightInStage(t *testing.T) {
 				"fake-namespace",
 				"fake-freight",
 				"fake-stage",
+				time.Now(),
 			)
 			testCase.assertions(t, updated, err)
 		})
