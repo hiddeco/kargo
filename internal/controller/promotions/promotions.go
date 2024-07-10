@@ -11,6 +11,7 @@ import (
 	"github.com/kelseyhightower/envconfig"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
@@ -71,6 +72,12 @@ type reconciler struct {
 		types.NamespacedName,
 	) (*kargoapi.Stage, error)
 
+	getFreightFn func(
+		context.Context,
+		client.Client,
+		types.NamespacedName,
+	) (*kargoapi.Freight, error)
+
 	promoteFn func(context.Context, kargoapi.Promotion, *kargoapi.Freight) (*kargoapi.PromotionStatus, error)
 }
 
@@ -86,6 +93,11 @@ func SetupReconcilerWithManager(
 	// Index running Promotions by Argo CD Applications
 	if err := kubeclient.IndexRunningPromotionsByArgoCDApplications(ctx, kargoMgr, cfg.ShardName); err != nil {
 		return fmt.Errorf("index running Promotions by Argo CD Applications: %w", err)
+	}
+
+	// Index Freight by Stages to which a Promotion has been attempted
+	if err := kubeclient.IndexFreightByPromotedToStages(ctx, kargoMgr); err != nil {
+		return fmt.Errorf("index Freight by Stages to which a promotion has been attempted: %w", err)
 	}
 
 	shardPredicate, err := controller.GetShardPredicate(cfg.ShardName)
@@ -283,6 +295,20 @@ func (r *reconciler) Reconcile(
 		}); err != nil {
 			return ctrl.Result{}, err
 		}
+
+		// Patch the Freight to indicate a promotion to the Stage has been
+		// attempted. This information can be used by subsequent Promotions
+		// to determine the collection of Freight that is available to them.
+		if err = kubeclient.PatchStatus(ctx, r.kargoClient, freight, func(status *kargoapi.FreightStatus) {
+			if status.PromotedTo == nil {
+				status.PromotedTo = map[string]kargoapi.PromotedStage{}
+			}
+			status.PromotedTo[promo.Spec.Stage] = kargoapi.PromotedStage{
+				PromotedAt: metav1.Now(),
+			}
+		}); err != nil {
+			return ctrl.Result{}, err
+		}
 	}
 
 	promoCtx := logging.ContextWithLogger(ctx, logger)
@@ -452,10 +478,12 @@ func (r *reconciler) promote(
 		Charts:  targetFreight.Charts,
 		Origin:  targetFreight.Origin,
 	}
-	targetFreightCol := r.buildTargetFreightCollection(targetFreightRef, stage)
+	targetFreightCol, err := r.buildTargetFreightCollection(ctx, targetFreightRef, stage)
+	if err != nil {
+		return nil, fmt.Errorf("error building target Freight collection: %w", err)
+	}
 
-	newStatus, nextFreight, err :=
-		r.promoMechanisms.Promote(ctx, stage, &promo, targetFreightCol.References())
+	newStatus, nextFreight, err := r.promoMechanisms.Promote(ctx, stage, &promo, targetFreightCol.References())
 	if err != nil {
 		return nil, err
 	}
@@ -499,22 +527,72 @@ func (r *reconciler) promote(
 // FreightReferences from the previous Promotion (excepting those that are no
 // longer requested), plus a FreightReference for the provided targetFreight.
 func (r *reconciler) buildTargetFreightCollection(
+	ctx context.Context,
 	targetFreight kargoapi.FreightReference,
 	stage *kargoapi.Stage,
-) *kargoapi.FreightCollection {
+) (*kargoapi.FreightCollection, error) {
 	freightCol := &kargoapi.FreightCollection{}
 
-	// We don't simply copy the current FreightCollection because we want to
-	// account for the possibility that some freight contained therein are no
-	// longer requested by the Stage.
-	lastPromo := stage.Status.LastPromotion
-	if lastPromo != nil {
-		for _, req := range stage.Spec.RequestedFreight {
-			if freight, ok := lastPromo.Status.FreightCollection.Freight[req.Origin.String()]; ok {
-				freightCol.UpdateOrPush(freight)
-			}
+	for _, req := range stage.Spec.RequestedFreight {
+		if req.Origin.Equals(&targetFreight.Origin) {
+			continue
 		}
+
+		var list kargoapi.FreightList
+		if err := r.kargoClient.List(
+			ctx,
+			&list,
+			client.InNamespace(stage.Namespace),
+			client.MatchingFieldsSelector{
+				Selector: fields.AndSelectors(
+					// TODO(hidde): this requires changing when support for
+					// different origin kinds is added.
+					fields.OneTermEqualSelector(kubeclient.FreightByWarehouseIndexField, req.Origin.Name),
+					fields.OneTermEqualSelector(kubeclient.FreightByPromotedToStagesIndexField, stage.Name),
+				),
+			},
+		); err != nil {
+			return nil, fmt.Errorf(
+				"failed to list Freight for origin %q in namespace %q: %w",
+				req.Origin.Name, stage.Namespace, err,
+			)
+		}
+
+		if len(list.Items) == 0 {
+			logging.LoggerFromContext(ctx).Debug(
+				"no Freight found for requested origin",
+				"origin", req.Origin.String(),
+			)
+			continue
+		}
+
+		// Find the latest Freight by sorting it by creation time
+		// in descending order.
+		slices.SortFunc(list.Items, func(a, b kargoapi.Freight) int {
+			aPromotedTS, aIsPromoted := a.Status.PromotedTo[stage.Name]
+			bPromotedTS, bIsPromoted := b.Status.PromotedTo[stage.Name]
+
+			switch {
+			case aIsPromoted && !bIsPromoted:
+				return -1
+			case !aIsPromoted && bIsPromoted:
+				return 1
+			default:
+				return bPromotedTS.PromotedAt.Time.Compare(aPromotedTS.PromotedAt.Time)
+			}
+		})
+
+		latestFreight := list.Items[0]
+		freightCol.UpdateOrPush(kargoapi.FreightReference{
+			Name:    latestFreight.Name,
+			Commits: latestFreight.Commits,
+			Images:  latestFreight.Images,
+			Charts:  latestFreight.Charts,
+			Origin:  req.Origin,
+		})
 	}
+
 	freightCol.UpdateOrPush(targetFreight)
-	return freightCol
+
+	return freightCol, nil
 }

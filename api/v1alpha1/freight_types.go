@@ -162,7 +162,7 @@ type FreightStatus struct {
 type PromotedStage struct {
 	// PromotedAt is the time at which this Freight was (attempted to be)
 	// promoted to the Stage.
-	PromotedAt metav1.Time `json:"lastPromotionAt,omitempty" protobuf:"bytes,1,opt,name=lastPromotionAt"`
+	PromotedAt metav1.Time `json:"promotedAt,omitempty" protobuf:"bytes,1,opt,name=promotedAt"`
 }
 
 // VerifiedStage describes a Stage in which Freight has been verified.

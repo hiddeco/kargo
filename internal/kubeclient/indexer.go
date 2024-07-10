@@ -20,6 +20,7 @@ import (
 const (
 	EventsByInvolvedObjectAPIGroupIndexField = "involvedObject.apiGroup"
 
+	FreightByPromotedToStagesIndexField   = "promotedTo"
 	FreightByVerifiedStagesIndexField     = "verifiedIn"
 	FreightApprovedForStagesIndexField    = "approvedFor"
 	FreightByWarehouseIndexField          = "warehouse"
@@ -307,6 +308,29 @@ func indexFreightByWarehouse(obj client.Object) []string {
 		return []string{freight.Origin.Name}
 	}
 	return nil
+}
+
+// IndexFreightByPromotedToStages indexes Freight by the Stages to which it has
+// (attempted to) been promoted.
+func IndexFreightByPromotedToStages(
+	ctx context.Context,
+	mgr ctrl.Manager,
+) error {
+	return mgr.GetFieldIndexer().IndexField(
+		ctx,
+		&kargoapi.Freight{},
+		FreightByPromotedToStagesIndexField,
+		indexFreightByPromotedToStages,
+	)
+}
+
+func indexFreightByPromotedToStages(obj client.Object) []string {
+	freight := obj.(*kargoapi.Freight) // nolint: forcetypeassert
+	promotedStages := make([]string, 0, len(freight.Status.PromotedTo))
+	for stage := range freight.Status.PromotedTo {
+		promotedStages = append(promotedStages, stage)
+	}
+	return promotedStages
 }
 
 // IndexFreightByVerifiedStages indexes Freight by the Stages in which it has
