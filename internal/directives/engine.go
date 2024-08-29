@@ -32,11 +32,11 @@ func NewEngine(registry DirectiveRegistry) *Engine {
 // Execute runs the provided list of directives in sequence.
 func (e *Engine) Execute(ctx context.Context, steps []Step) (Result, error) {
 	// TODO(hidde): allow the workDir to be restored from a previous execution.
-	workDir, err := os.CreateTemp("", "run-")
+	workDir, err := os.MkdirTemp("", "run-")
 	if err != nil {
 		return ResultFailure, fmt.Errorf("temporary working directory creation failed: %w", err)
 	}
-	defer os.RemoveAll(workDir.Name())
+	defer os.RemoveAll(workDir)
 
 	// Initialize the shared state that will be passed to each step.
 	state := make(State)
@@ -52,7 +52,7 @@ func (e *Engine) Execute(ctx context.Context, steps []Step) (Result, error) {
 			}
 
 			if result, err := step.Run(ctx, &StepContext{
-				WorkDir:     workDir.Name(),
+				WorkDir:     workDir,
 				SharedState: state,
 				Alias:       d.Alias,
 				Config:      d.Config.DeepCopy(),
