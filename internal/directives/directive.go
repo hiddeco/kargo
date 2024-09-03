@@ -25,6 +25,8 @@ type StepContext struct {
 	Config Config
 	// Project is the Project that the Promotion is associated with.
 	Project string
+	// Stage is the Stage that the Promotion is targeting.
+	Stage string
 	// FreightRequests is the list of Freight from various origins that is
 	// requested by the Stage targeted by the Promotion. This information is
 	// sometimes useful to Steps that reference a particular artifact and, in the

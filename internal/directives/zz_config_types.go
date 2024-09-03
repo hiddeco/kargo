@@ -25,6 +25,9 @@ type Checkout struct {
 	// The branch to checkout. Mutually exclusive with 'tag' and 'fromFreight=true'. If none of
 	// these is specified, the default branch is checked out.
 	Branch string `json:"branch,omitempty"`
+	// Indicates whether a new, empty orphan branch should be created if the branch does not
+	// already exist. Default is false.
+	Create bool `json:"create,omitempty"`
 	// Indicates whether the ID of a commit to check out may be obtained from Freight. A value
 	// of 'true' is mutually exclusive with 'branch' and 'tag'. If none of these is specified,
 	// the default branch is checked out.
@@ -47,8 +50,10 @@ type CheckoutFromOrigin struct {
 type GitCommitConfig struct {
 	// The author of the commit.
 	Author *Author `json:"author,omitempty"`
-	// The commit message.
+	// The commit message. Mutually exclusive with 'messageFrom'.
 	Message string `json:"message,omitempty"`
+	// TODO
+	MessageFrom []string `json:"messageFrom,omitempty"`
 	// The path to a working directory of a local repository.
 	Path string `json:"path"`
 }
@@ -59,6 +64,15 @@ type Author struct {
 	Email string `json:"email,omitempty"`
 	// The name of the author.
 	Name string `json:"name,omitempty"`
+}
+
+type GitOverwriteConfig struct {
+	// A path to a directory from which to copy all contents, excluding the .git/ directory, if
+	// one exists.
+	InPath string `json:"inPath"`
+	// A path to a git working tree which will be cleared of all existing content before
+	// receiving a copy of all content specified by inPath.
+	OutPath string `json:"outPath"`
 }
 
 type GitPushConfig struct {
