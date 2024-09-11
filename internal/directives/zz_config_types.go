@@ -66,6 +66,28 @@ type Author struct {
 	Name string `json:"name,omitempty"`
 }
 
+type GitOpenPRConfig struct {
+	// Indicates whether a new, empty orphan branch should be created and pushed to the remote
+	// if the target branch does not already exist there. Default is false.
+	CreateTargetBranch bool `json:"createTargetBranch,omitempty"`
+	// Indicates whether to skip TLS verification when cloning the repository. Default is false.
+	InsecureSkipTLSVerify bool `json:"insecureSkipTLSVerify,omitempty"`
+	// The name of the Git provider to use. Currently only 'github' and 'gitlab' are supported.
+	// Kargo will try to infer the provider if it is not explicitly specified.
+	Provider *Provider `json:"provider,omitempty"`
+	// The URL of a remote Git repository to clone.
+	RepoURL string `json:"repoURL"`
+	// The branch containing the changes to be merged. This branch must already exist and be up
+	// to date on the remote.
+	SourceBranch string `json:"sourceBranch,omitempty"`
+	// References a previous push step by alias and will use the branch written to by that step
+	// as the source branch.
+	SourceBranchFromPush string `json:"sourceBranchFromPush,omitempty"`
+	// The branch to which the changes should be merged. This branch must already exist and be
+	// up to date on the remote.
+	TargetBranch string `json:"targetBranch"`
+}
+
 type GitOverwriteConfig struct {
 	// A path to a directory from which to copy all contents, excluding the .git/ directory, if
 	// one exists.
@@ -154,6 +176,15 @@ type Kind string
 
 const (
 	Warehouse Kind = "Warehouse"
+)
+
+// The name of the Git provider to use. Currently only 'github' and 'gitlab' are supported.
+// Kargo will try to infer the provider if it is not explicitly specified.
+type Provider string
+
+const (
+	Github Provider = "github"
+	Gitlab Provider = "gitlab"
 )
 
 // Specifies the new value for the specified key in the Helm values file.

@@ -88,11 +88,11 @@ func (g *gitCloneDirective) run(
 	repo, err := git.CloneBare(
 		cfg.RepoURL,
 		&git.ClientOptions{
-			Credentials: repoCreds,
+			Credentials:           repoCreds,
+			InsecureSkipTLSVerify: cfg.InsecureSkipTLSVerify,
 		},
 		&git.BareCloneOptions{
-			BaseDir:               stepCtx.WorkDir,
-			InsecureSkipTLSVerify: cfg.InsecureSkipTLSVerify,
+			BaseDir: stepCtx.WorkDir,
 		},
 	)
 	if err != nil {
@@ -104,7 +104,8 @@ func (g *gitCloneDirective) run(
 		case checkout.Branch != "":
 			ref = checkout.Branch
 			if err = ensureRemoteBranch(repo, ref); err != nil {
-				return Result{Status: StatusFailure}, fmt.Errorf("error ensuring existence of remote branch %s: %w", ref, err)
+				return Result{Status: StatusFailure},
+					fmt.Errorf("error ensuring existence of remote branch %s: %w", ref, err)
 			}
 		case checkout.FromFreight:
 			var desiredOrigin *kargoapi.FreightOrigin
@@ -123,7 +124,8 @@ func (g *gitCloneDirective) run(
 				stepCtx.Freight.References(),
 				cfg.RepoURL,
 			); err != nil {
-				return Result{Status: StatusFailure}, fmt.Errorf("error finding commit from repo %s: %w", cfg.RepoURL, err)
+				return Result{Status: StatusFailure},
+					fmt.Errorf("error finding commit from repo %s: %w", cfg.RepoURL, err)
 			}
 			ref = commit.ID
 		case checkout.Tag != "":

@@ -27,9 +27,9 @@ type gitPushDirective struct {
 
 // newGitPushDirective creates a new git-push directive.
 func newGitPushDirective() Directive {
-	return &gitPushDirective{
-		schemaLoader: getConfigSchemaLoader("git-push"),
-	}
+	d := &gitPushDirective{}
+	d.schemaLoader = getConfigSchemaLoader(d.Name())
+	return d
 }
 
 // Name implements the Directive interface.
