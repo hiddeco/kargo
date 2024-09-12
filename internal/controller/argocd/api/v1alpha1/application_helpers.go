@@ -3,6 +3,7 @@ package v1alpha1
 import (
 	"context"
 	"fmt"
+	"slices"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -36,4 +37,19 @@ func GetApplication(
 		)
 	}
 	return &app, nil
+}
+
+// FilterAppConditions returns a slice of v1alpha1.ApplicationCondition that
+// match the provided types.
+func FilterAppConditions(
+	app *Application,
+	t ...ApplicationConditionType,
+) []ApplicationCondition {
+	c := make([]ApplicationCondition, 0, len(app.Status.Conditions))
+	for _, condition := range app.Status.Conditions {
+		if slices.Contains(t, condition.Type) {
+			c = append(c, condition)
+		}
+	}
+	return c
 }
