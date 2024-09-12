@@ -4,6 +4,21 @@ package directives
 
 type CommonDefs interface{}
 
+type ArgoCDHealthConfig struct {
+	Applications []Application `json:"applications"`
+	Wait         *Wait         `json:"wait,omitempty"`
+}
+
+type Application struct {
+	Name      string `json:"name"`
+	Namespace string `json:"namespace"`
+}
+
+type Wait struct {
+	Enabled bool   `json:"enabled"`
+	Timeout string `json:"timeout,omitempty"`
+}
+
 type CopyConfig struct {
 	// InPath is the path to the file or directory to copy.
 	InPath string `json:"inPath"`
