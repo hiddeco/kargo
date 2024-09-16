@@ -161,6 +161,13 @@ var (
 	ApplicationConditionComparisonError  ApplicationConditionType = "ComparisonError"
 )
 
+// ApplicationUnhealthyConditions are the ApplicationConditionType conditions
+// that indicate an Argo CD Application is unhealthy.
+var ApplicationUnhealthyConditions = []ApplicationConditionType{
+	ApplicationConditionComparisonError,
+	ApplicationConditionInvalidSpecError,
+}
+
 type ApplicationCondition struct {
 	Type               ApplicationConditionType `json:"type"`
 	Message            string                   `json:"message"`
