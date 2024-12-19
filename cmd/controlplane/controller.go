@@ -192,12 +192,19 @@ func (o *controllerOptions) setupKargoManager(
 			PprofBindAddress: o.PprofBindAddress,
 			Client: client.Options{
 				Cache: &client.CacheOptions{
-					// The controller does not have cluster-wide permissions, to
-					// get/list/watch Secrets. Its access to Secrets grows and shrinks
-					// dynamically as Projects are created and deleted. We disable caching
-					// here since the underlying informer will not be able to watch
-					// Secrets in all namespaces.
-					DisableFor: []client.Object{&corev1.Secret{}},
+					DisableFor: []client.Object{
+						// The controller does not have cluster-wide permissions, to
+						// get/list/watch Secrets. Its access to Secrets grows and shrinks
+						// dynamically as Projects are created and deleted. We disable caching
+						// here since the underlying informer will not be able to watch
+						// Secrets in all namespaces.
+						&corev1.Secret{},
+						// The controller only ever produces Events and does not need to
+						// watch them. We disable caching here to avoid the overhead of
+						// watching Events in all namespaces, which can go paired with a
+						// delay in starting the controller.
+						&corev1.Event{},
+					},
 				},
 			},
 			Cache: cache.Options{
