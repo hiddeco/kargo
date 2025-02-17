@@ -1,6 +1,6 @@
 module github.com/akuity/kargo
 
-go 1.23.4
+go 1.24.0
 
 require (
 	connectrpc.com/connect v1.18.1
