@@ -44,6 +44,7 @@ func DefaultExprDataCacheFn() *gocache.Cache {
 // simpleEngine is a simple implementation of the Engine interface that uses
 // built-in StepRunners.
 type simpleEngine struct {
+	executor    StepExecutor
 	registry    stepRunnerRegistry
 	kargoClient client.Client
 	cacheFunc   ExprDataCacheFn
@@ -53,6 +54,7 @@ type simpleEngine struct {
 // uses built-in StepRunners.
 func NewSimpleEngine(kargoClient client.Client, cacheFunc ExprDataCacheFn) Engine {
 	return &simpleEngine{
+		executor:    NewLocalStepExecutor(stepRunnerReg),
 		registry:    stepRunnerReg,
 		kargoClient: kargoClient,
 		cacheFunc:   cacheFunc,
@@ -142,8 +144,20 @@ func (e *simpleEngine) executeSteps(
 			stepExecMeta.StartedAt = ptr.To(metav1.Now())
 		}
 
-		// Execute the step.
-		result, err := e.executeStep(ctx, evaluator, promoCtx, step, runner)
+		// Build step context for execution
+		stepCtx, err := evaluator.BuildStepContext(ctx, promoCtx, step)
+		if err != nil {
+			stepExecMeta.Status = kargoapi.PromotionStepStatusErrored
+			stepExecMeta.Message = fmt.Sprintf("error building step context: %s", err)
+			stepExecMeta.FinishedAt = ptr.To(metav1.Now())
+			continue
+		}
+
+		// Execute the step using the executor
+		result, err := e.executor.ExecuteStep(ctx, StepExecutionRequest{
+			Context: *stepCtx,
+			Step:    step,
+		})
 
 		// Propagate the output of the step to the state.
 		e.propagateStepOutput(promoCtx, step, runner, result)
@@ -425,38 +439,6 @@ func determinePromoPhase(
 		// This really shouldn't ever happen. We'll treat it as an error.
 		return kargoapi.PromotionPhaseErrored, worstMsg
 	}
-}
-
-// executeStep executes a single Step.
-func (e *simpleEngine) executeStep(
-	ctx context.Context,
-	evaluator *StepEvaluator,
-	promoCtx Context,
-	step Step,
-	runner promotion.StepRunner,
-) (result promotion.StepResult, err error) {
-	defer func() {
-		if r := recover(); r != nil {
-			result = promotion.StepResult{
-				Status: kargoapi.PromotionStepStatusErrored,
-			}
-			err = &promotion.TerminalError{
-				Err: fmt.Errorf("step %q panicked: %v", step.Alias, r),
-			}
-		}
-	}()
-
-	stepCtx, err := evaluator.BuildStepContext(ctx, promoCtx, step)
-	if err != nil {
-		return promotion.StepResult{
-			Status: kargoapi.PromotionStepStatusErrored,
-		}, &promotion.TerminalError{Err: err}
-	}
-
-	if result, err = runner.Run(ctx, stepCtx); err != nil {
-		err = fmt.Errorf("error running step %q: %w", step.Alias, err)
-	}
-	return result, err
 }
 
 // setupWorkDir creates a temporary working directory if one is not provided.

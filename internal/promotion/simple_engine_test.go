@@ -103,6 +103,7 @@ func TestSimpleEngine_Promote(t *testing.T) {
 			)
 
 			engine := &simpleEngine{
+				executor:    NewLocalStepExecutor(testRegistry),
 				registry:    testRegistry,
 				kargoClient: fake.NewClientBuilder().Build(),
 			}
@@ -642,6 +643,7 @@ func TestSimpleEngine_executeSteps(t *testing.T) {
 			}
 
 			engine := &simpleEngine{
+				executor:    NewLocalStepExecutor(testRegistry),
 				registry:    testRegistry,
 				kargoClient: fake.NewClientBuilder().Build(),
 			}
@@ -777,101 +779,6 @@ func TestDeterminePromoPhase(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			phase, _ := determinePromoPhase(tt.steps, tt.stepExecMetas)
 			require.Equal(t, tt.expectedPhase, phase)
-		})
-	}
-}
-
-func TestSimpleEngine_executeStep(t *testing.T) {
-	tests := []struct {
-		name       string
-		promoCtx   Context
-		step       Step
-		runner     promotion.StepRunner
-		assertions func(*testing.T, promotion.StepResult, error)
-	}{
-		{
-			name: "successful step execution",
-			promoCtx: Context{
-				Project: "test-project",
-			},
-			step: Step{
-				Kind:  "success-step",
-				Alias: "test-step",
-			},
-			runner: &promotion.MockStepRunner{
-				StepName: "success-step",
-				RunResult: promotion.StepResult{
-					Status: kargoapi.PromotionStepStatusSucceeded,
-				},
-			},
-			assertions: func(t *testing.T, result promotion.StepResult, err error) {
-				assert.NoError(t, err)
-				assert.Equal(t, kargoapi.PromotionStepStatusSucceeded, result.Status)
-			},
-		},
-		{
-			name: "step execution failure",
-			promoCtx: Context{
-				Project: "test-project",
-			},
-			step: Step{
-				Kind:  "error-step",
-				Alias: "my-step",
-			},
-			runner: &promotion.MockStepRunner{
-				StepName: "error-step",
-				RunResult: promotion.StepResult{
-					Status: kargoapi.PromotionStepStatusErrored,
-				},
-				RunErr: errors.New("something went wrong"),
-			},
-			assertions: func(t *testing.T, result promotion.StepResult, err error) {
-				assert.ErrorContains(t, err, "error running step \"my-step\"")
-				assert.ErrorContains(t, err, "something went wrong")
-				assert.Equal(t, kargoapi.PromotionStepStatusErrored, result.Status)
-			},
-		},
-		{
-			name: "step context building failure",
-			promoCtx: Context{
-				Project: "test-project",
-			},
-			step: Step{
-				Kind:   "success-step",
-				Alias:  "test-step",
-				Config: []byte(`{"invalid": "${{ invalid.expression }}"}`),
-			},
-			runner: &promotion.MockStepRunner{
-				StepName: "success-step",
-				RunResult: promotion.StepResult{
-					Status: kargoapi.PromotionStepStatusSucceeded,
-				},
-			},
-			assertions: func(t *testing.T, result promotion.StepResult, err error) {
-				assert.Error(t, err)
-				assert.IsType(t, &promotion.TerminalError{}, err)
-				assert.Equal(t, kargoapi.PromotionStepStatusErrored, result.Status)
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			engine := &simpleEngine{
-				kargoClient: fake.NewClientBuilder().Build(),
-			}
-			evaluator := NewStepEvaluator(engine.kargoClient, nil)
-
-			tt.promoCtx.WorkDir = t.TempDir()
-
-			result, err := engine.executeStep(
-				context.Background(),
-				evaluator,
-				tt.promoCtx,
-				tt.step,
-				tt.runner,
-			)
-			tt.assertions(t, result, err)
 		})
 	}
 }
