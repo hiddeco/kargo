@@ -103,7 +103,8 @@ func TestSimpleEngine_Promote(t *testing.T) {
 			)
 
 			engine := &simpleEngine{
-				registry: testRegistry,
+				registry:    testRegistry,
+				kargoClient: fake.NewClientBuilder().Build(),
 			}
 
 			result, err := engine.Promote(ctx, tt.promoCtx, tt.steps)
@@ -645,7 +646,9 @@ func TestSimpleEngine_executeSteps(t *testing.T) {
 				kargoClient: fake.NewClientBuilder().Build(),
 			}
 
-			tt.assertions(t, engine.executeSteps(ctx, tt.promoCtx, tt.steps, t.TempDir()))
+			tt.promoCtx.WorkDir = t.TempDir()
+
+			tt.assertions(t, engine.executeSteps(ctx, tt.promoCtx, tt.steps))
 		})
 	}
 }
@@ -788,6 +791,13 @@ func TestSimpleEngine_executeStep(t *testing.T) {
 	}{
 		{
 			name: "successful step execution",
+			promoCtx: Context{
+				Project: "test-project",
+			},
+			step: Step{
+				Kind:  "success-step",
+				Alias: "test-step",
+			},
 			runner: &promotion.MockStepRunner{
 				StepName: "success-step",
 				RunResult: promotion.StepResult{
@@ -801,6 +811,9 @@ func TestSimpleEngine_executeStep(t *testing.T) {
 		},
 		{
 			name: "step execution failure",
+			promoCtx: Context{
+				Project: "test-project",
+			},
 			step: Step{
 				Kind:  "error-step",
 				Alias: "my-step",
@@ -818,65 +831,47 @@ func TestSimpleEngine_executeStep(t *testing.T) {
 				assert.Equal(t, kargoapi.PromotionStepStatusErrored, result.Status)
 			},
 		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			engine := &simpleEngine{
-				kargoClient: fake.NewClientBuilder().Build(),
-			}
-
-			result, err := engine.executeStep(
-				context.Background(),
-				nil,
-				tt.promoCtx,
-				tt.step,
-				tt.runner,
-				t.TempDir(),
-			)
-			tt.assertions(t, result, err)
-		})
-	}
-}
-
-func TestSimpleEngine_prepareStepContext(t *testing.T) {
-	tests := []struct {
-		name       string
-		promoCtx   Context
-		step       Step
-		assertions func(*testing.T, *promotion.StepContext, error)
-	}{
 		{
-			name: "successful context preparation",
+			name: "step context building failure",
 			promoCtx: Context{
-				Project:   "test-project",
-				Stage:     "test-stage",
-				UIBaseURL: "http://test",
+				Project: "test-project",
 			},
-			step: Step{Kind: "test-step"},
-			assertions: func(t *testing.T, ctx *promotion.StepContext, err error) {
-				assert.NoError(t, err)
-				assert.Equal(t, "test-project", ctx.Project)
-				assert.Equal(t, "test-stage", ctx.Stage)
-				assert.Equal(t, "http://test", ctx.UIBaseURL)
+			step: Step{
+				Kind:   "success-step",
+				Alias:  "test-step",
+				Config: []byte(`{"invalid": "${{ invalid.expression }}"}`),
+			},
+			runner: &promotion.MockStepRunner{
+				StepName: "success-step",
+				RunResult: promotion.StepResult{
+					Status: kargoapi.PromotionStepStatusSucceeded,
+				},
+			},
+			assertions: func(t *testing.T, result promotion.StepResult, err error) {
+				assert.Error(t, err)
+				assert.IsType(t, &promotion.TerminalError{}, err)
+				assert.Equal(t, kargoapi.PromotionStepStatusErrored, result.Status)
 			},
 		},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			engine := &simpleEngine{
-				registry:    stepRunnerRegistry{},
 				kargoClient: fake.NewClientBuilder().Build(),
 			}
+			evaluator := NewStepEvaluator(engine.kargoClient, nil)
 
-			stepCtx, err := engine.prepareStepContext(
+			tt.promoCtx.WorkDir = t.TempDir()
+
+			result, err := engine.executeStep(
 				context.Background(),
-				nil,
+				evaluator,
 				tt.promoCtx,
 				tt.step,
-				t.TempDir(),
+				tt.runner,
 			)
-			tt.assertions(t, stepCtx, err)
+			tt.assertions(t, result, err)
 		})
 	}
 }
