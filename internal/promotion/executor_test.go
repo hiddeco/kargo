@@ -94,7 +94,7 @@ func TestLocalStepExecutor_ExecuteStep(t *testing.T) {
 			name: "step execution panics",
 			registry: stepRunnerRegistry{
 				"test-step": &promotion.MockStepRunner{
-					RunFunc: func(ctx context.Context, stepCtx *promotion.StepContext) (promotion.StepResult, error) {
+					RunFunc: func(context.Context, *promotion.StepContext) (promotion.StepResult, error) {
 						panic("step runner panicked")
 					},
 				},

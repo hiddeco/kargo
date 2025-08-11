@@ -57,9 +57,32 @@ type Context struct {
 	Actor string
 }
 
+// GetStepExecutionMetadata retrieves the StepExecutionMetadata for a given
+// Step. If metadata for the Step does not already exist, it creates a new
+// StepExecutionMetadata entry with the Step's alias and ContinueOnError
+// property, and returns it.
+func (c *Context) GetStepExecutionMetadata(step Step) *kargoapi.StepExecutionMetadata {
+	for i := range c.StepExecutionMetadata {
+		if c.StepExecutionMetadata[i].Alias == step.Alias {
+			// Found existing metadata for this step, return it.
+			return &c.StepExecutionMetadata[i]
+		}
+	}
+
+	// If not found, append new metadata
+	c.StepExecutionMetadata = append(
+		c.StepExecutionMetadata,
+		kargoapi.StepExecutionMetadata{
+			Alias:           step.Alias,
+			ContinueOnError: step.ContinueOnError,
+		},
+	)
+	return &c.StepExecutionMetadata[len(c.StepExecutionMetadata)-1]
+}
+
 // DeepCopy creates a deep copy of the Context. It can be used to ensure that
 // modifications to the Context do not affect the original Context.
-func (c Context) DeepCopy() Context {
+func (c *Context) DeepCopy() Context {
 	newC := Context{
 		UIBaseURL:             c.UIBaseURL,
 		WorkDir:               c.WorkDir,
