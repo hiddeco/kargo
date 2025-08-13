@@ -6,7 +6,6 @@ import (
 
 	gocache "github.com/patrickmn/go-cache"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	kargoapi "github.com/akuity/kargo/api/v1alpha1"
@@ -74,14 +73,31 @@ func (o *LocalOrchestrator) ExecuteSteps(
 	// the Context if provided.
 	for i := promoCtx.StartFromStep; i < int64(len(steps)); i++ {
 		step := steps[i]
+		meta := promoCtx.SetCurrentStep(step)
 
-		stepExecMeta := promoCtx.GetStepExecutionMetadata(step)
-
-		if o.isContextCanceled(ctx, stepExecMeta) {
-			break
+		select {
+		case <-ctx.Done():
+			if meta.StartedAt != nil && meta.FinishedAt == nil {
+				// If we did start the step but did not finish it,
+				// we should mark it as errored due to the context being
+				// cancelled.
+				meta.WithStatus(kargoapi.PromotionStepStatusErrored). WithMessagef(
+					"step %q was cancelled due to context cancellation: %s",
+					step.Alias, ctx.Err(),
+				).Finished()
+			}
+			return Result{
+				Status:                kargoapi.PromotionPhaseErrored,
+				Message:               fmt.Sprintf("execution cancelled: %s", ctx.Err()),
+				CurrentStep:           i,
+				StepExecutionMetadata: promoCtx.StepExecutionMetadata,
+				State:                 promoCtx.State,
+				HealthChecks:          healthChecks,
+			}, nil
+		default:
+			// Continue execution if the context is still active.
 		}
 
-		meta := promoCtx.SetCurrentStep(step)
 		processor := NewStepEvaluator(o.client, o.newCache())
 
 		// Evaluate the "if" condition for the step to determine if it should
@@ -166,7 +182,7 @@ func (o *LocalOrchestrator) ExecuteSteps(
 		}
 
 		// If the step succeeded, we can add any health checks to the list.
-		if stepExecMeta.Status == kargoapi.PromotionStepStatusSucceeded {
+		if meta.Status == kargoapi.PromotionStepStatusSucceeded {
 			if result.HealthCheck != nil {
 				healthChecks = append(healthChecks, *result.HealthCheck)
 			}
@@ -184,20 +200,6 @@ func (o *LocalOrchestrator) ExecuteSteps(
 		State:                 promoCtx.State,
 		HealthChecks:          healthChecks,
 	}, nil
-}
-
-func (o *LocalOrchestrator) isContextCanceled(ctx context.Context, meta *kargoapi.StepExecutionMetadata) bool {
-	select {
-	case <-ctx.Done():
-		meta.Status = kargoapi.PromotionStepStatusErrored
-		meta.Message = ctx.Err().Error()
-		if meta.StartedAt != nil {
-			meta.FinishedAt = ptr.To(metav1.Now())
-		}
-		return true
-	default:
-		return false
-	}
 }
 
 func (o *LocalOrchestrator) propagateStepOutput(
