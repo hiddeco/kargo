@@ -1,9 +1,11 @@
 package promotion
 
 import (
+	"fmt"
 	"slices"
 	"time"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 
 	kargoapi "github.com/akuity/kargo/api/v1alpha1"
@@ -55,6 +57,25 @@ type Context struct {
 	Vars []kargoapi.ExpressionVariable
 	// Actor is the name of the actor triggering the Promotion.
 	Actor string
+
+	// currentStepMetadata is a pointer to the StepMetadata for the
+	// current step being executed. It is used to track the execution state of
+	// the current step.
+	currentStepMetadata *StepMetadata
+}
+
+// SetCurrentStep sets the current step to the provided Step and returns a
+// StepMetadata that can be used to update the execution metadata of the step.
+func (c *Context) SetCurrentStep(step Step) *StepMetadata {
+	meta := c.GetStepExecutionMetadata(step)
+	c.currentStepMetadata = (*StepMetadata)(meta)
+	return c.currentStepMetadata
+}
+
+// GetCurrentStep retrieves the StepMetadata for the current step being executed.
+// If no current step is set, it returns nil.
+func (c *Context) GetCurrentStep() *StepMetadata {
+	return c.currentStepMetadata
 }
 
 // GetStepExecutionMetadata retrieves the StepExecutionMetadata for a given
@@ -106,6 +127,73 @@ func (c *Context) DeepCopy() Context {
 	}
 
 	return newC
+}
+
+// StepMetadata is a type that represents metadata about the execution of a
+// single step in a user-defined promotion process. It is used to track the
+// status, start and finish times, error counts, and other relevant information
+// about the step's execution. This metadata is stored in the
+// StepExecutionMetadata field of the Context and is used to provide detailed
+// information about the execution of each step in the promotion process.
+type StepMetadata kargoapi.StepExecutionMetadata
+
+// WithStatus sets the status of the StepMetadata and returns the updated
+// StepMetadata. This method is used to update the status of the step during
+// its execution, such as when it starts, finishes, or encounters an error.
+func (m *StepMetadata) WithStatus(status kargoapi.PromotionStepStatus) *StepMetadata {
+	m.Status = status
+	return m
+}
+
+// WithMessage sets the message of the StepMetadata and returns the updated
+// StepMetadata. This method is used to provide additional context or details
+// about the step's execution, such as error messages or informational messages
+// that may be useful for debugging or understanding the step's outcome.
+func (m *StepMetadata) WithMessage(message string) *StepMetadata {
+	m.Message = message
+	return m
+}
+
+// WithMessagef formats the message using the provided format string and
+// arguments, sets it as the message of the StepMetadata, and returns the
+// updated StepMetadata. This method is useful for constructing dynamic messages
+// that include variable content, such as error details or step-specific
+// information.
+func (m *StepMetadata) WithMessagef(format string, a ...any) *StepMetadata {
+	m.Message = fmt.Sprintf(format, a...)
+	return m
+}
+
+// Error increments the error count of the StepMetadata and returns the updated
+// StepMetadata. This method is used to track the number of errors encountered
+// during the execution of the step. It is typically called when the step fails
+// or encounters an error condition.
+func (m *StepMetadata) Error() *StepMetadata {
+	m.ErrorCount++
+	return m
+}
+
+// Started sets the StartedAt timestamp to the current time if it is not already
+// set, and resets the error count to zero. It returns the updated StepMetadata.
+// This method is used to mark the start of the step's execution, indicating
+// when the step began processing.
+func (m *StepMetadata) Started() *StepMetadata {
+	if m.StartedAt == nil {
+		m.StartedAt = ptr.To(metav1.Now())
+		m.ErrorCount = 0
+	}
+	return m
+}
+
+// Finished sets the FinishedAt timestamp to the current time if it is not
+// already set, indicating that the step has completed its execution. It returns
+// the updated StepMetadata. This method is used to mark the end of the step's
+// execution, indicating when the step finished processing.
+func (m *StepMetadata) Finished() *StepMetadata {
+	if m.FinishedAt == nil {
+		m.FinishedAt = ptr.To(metav1.Now())
+	}
+	return m
 }
 
 // Step describes a single step in a user-defined promotion process. Steps are

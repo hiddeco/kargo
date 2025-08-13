@@ -81,6 +81,7 @@ func (o *LocalOrchestrator) ExecuteSteps(
 			break
 		}
 
+		meta := promoCtx.SetCurrentStep(step)
 		processor := NewStepEvaluator(o.client, o.newCache())
 
 		// Evaluate the "if" condition for the step to determine if it should
@@ -88,13 +89,14 @@ func (o *LocalOrchestrator) ExecuteSteps(
 		skip, err := processor.ShouldSkip(ctx, promoCtx, step)
 		switch {
 		case err != nil:
-			stepExecMeta.Status = kargoapi.PromotionStepStatusErrored
-			stepExecMeta.Message = fmt.Sprintf("error checking if step %q should be skipped: %s", step.Alias, err)
+			meta.WithStatus(kargoapi.PromotionStepStatusErrored).WithMessagef(
+				"error checking if step %q should be skipped: %s", step.Alias, err,
+			)
 			// Skip the step, because despite this failure, some steps' "if"
 			// conditions may still allow them to run.
 			continue
 		case skip:
-			stepExecMeta.Status = kargoapi.PromotionStepStatusSkipped
+			meta.WithStatus(kargoapi.PromotionStepStatusSkipped)
 			continue
 		}
 
@@ -107,8 +109,9 @@ func (o *LocalOrchestrator) ExecuteSteps(
 		// identify the lack of a registered runner.
 		runner := o.registry.getStepRunner(step.Kind)
 		if runner == nil {
-			stepExecMeta.Status = kargoapi.PromotionStepStatusErrored
-			stepExecMeta.Message = fmt.Sprintf("no promotion step runner found for kind %q", step.Kind)
+			meta.WithStatus(kargoapi.PromotionStepStatusErrored).WithMessagef(
+				"no promotion step runner found for kind %q", step.Kind,
+			)
 			// Continue, because despite this failure, some steps' "if" conditions may
 			// still allow them to run.
 			//
@@ -119,15 +122,14 @@ func (o *LocalOrchestrator) ExecuteSteps(
 		}
 
 		// Mark the step as started.
-		if stepExecMeta.StartedAt == nil {
-			stepExecMeta.StartedAt = ptr.To(metav1.Now())
-		}
+		meta.Started()
 
 		// Build step context for the step execution.
 		stepCtx, err := processor.BuildStepContext(ctx, promoCtx, step)
 		if err != nil {
-			stepExecMeta.Status = kargoapi.PromotionStepStatusErrored
-			stepExecMeta.Message = fmt.Sprintf("failed to build step context: %s", err)
+			meta.WithStatus(kargoapi.PromotionStepStatusErrored).WithMessagef(
+				"failed to build step context: %s", err,
+			)
 			continue
 		}
 
@@ -142,17 +144,17 @@ func (o *LocalOrchestrator) ExecuteSteps(
 
 		// Confirm the step has a valid status.
 		if !result.Status.Valid() {
-			stepExecMeta.FinishedAt = ptr.To(metav1.Now())
-			stepExecMeta.Status = kargoapi.PromotionStepStatusErrored
-			stepExecMeta.Message = fmt.Sprintf("step %q returned an invalid status: %s", step.Alias, result.Status)
+			meta.WithStatus(kargoapi.PromotionStepStatusErrored).WithMessagef(
+				"step %q returned an invalid status: %s", step.Alias, result.Status,
+			).Finished()
 			continue
 		}
 
 		// Update the step execution metadata with the result.
-		err = o.reconcileResultWithMetadata(stepExecMeta, step, result, err)
+		err = o.reconcileResultWithMetadata(promoCtx, step, result, err)
 
 		// Determine the completion of the step based on the metadata.
-		if !o.determineStepCompletion(step, runner, stepExecMeta, err) {
+		if !o.determineStepCompletion(promoCtx, step, runner, err) {
 			// The step is still running, so we need to wait
 			return Result{
 				Status:                kargoapi.PromotionPhaseRunning,
@@ -222,13 +224,14 @@ func (o *LocalOrchestrator) propagateStepOutput(
 }
 
 func (o *LocalOrchestrator) reconcileResultWithMetadata(
-	meta *kargoapi.StepExecutionMetadata,
+	promoCtx Context,
 	step Step,
 	result promotion.StepResult,
 	err error,
 ) error {
-	meta.Status = result.Status
-	meta.Message = result.Message
+	meta := promoCtx.GetCurrentStep()
+
+	meta.WithStatus(result.Status).WithMessage(result.Message)
 
 	if err != nil {
 		if meta.Status != kargoapi.PromotionStepStatusFailed {
@@ -238,7 +241,7 @@ func (o *LocalOrchestrator) reconcileResultWithMetadata(
 			// status and change the status to Errored.
 			meta.Status = kargoapi.PromotionStepStatusErrored
 		}
-		meta.Message = err.Error()
+		meta.WithMessage(err.Error())
 		return err
 	}
 
@@ -258,39 +261,36 @@ func (o *LocalOrchestrator) reconcileResultWithMetadata(
 }
 
 func (o *LocalOrchestrator) determineStepCompletion(
+	promoCtx Context,
 	step Step,
 	runner promotion.StepRunner,
-	meta *kargoapi.StepExecutionMetadata,
 	err error,
 ) bool {
+	meta := promoCtx.GetCurrentStep()
+
 	switch {
 	case meta.Status == kargoapi.PromotionStepStatusSucceeded ||
 		meta.Status == kargoapi.PromotionStepStatusSkipped:
 		// Note: A step that ran briefly and self-determined it should be
 		// "skipped" is treated similarly to success.
-		meta.FinishedAt = ptr.To(metav1.Now())
+		meta.Finished()
 		return true
 	case promotion.IsTerminal(err):
 		// This is an unrecoverable error.
-		meta.FinishedAt = ptr.To(metav1.Now())
-		meta.Status = kargoapi.PromotionStepStatusErrored
-		meta.Message = fmt.Sprintf("an unrecoverable error occurred: %s", err)
-		// Continue, because despite this failure, some steps' "if" conditions may
-		// still allow them to run.
+		meta.WithStatus(kargoapi.PromotionStepStatusErrored).WithMessagef(
+			"an unrecoverable error occurred: %s", err,
+		).Finished()
 		return true
 	case err != nil:
 		// If we get to here, the error is POTENTIALLY recoverable.
-		meta.ErrorCount++
+		meta.Error()
 		// Check if the error threshold has been met.
 		errorThreshold := step.GetErrorThreshold(runner)
 		if meta.ErrorCount >= errorThreshold {
 			// The error threshold has been met.
-			meta.FinishedAt = ptr.To(metav1.Now())
-			meta.Status = kargoapi.PromotionStepStatusErrored
-			meta.Message = fmt.Sprintf(
-				"step %q met error threshold of %d: %s", step.Alias,
-				errorThreshold, meta.Message,
-			)
+			meta.WithStatus(kargoapi.PromotionStepStatusErrored).WithMessagef(
+				"step %q met error threshold of %d: %s", step.Alias, errorThreshold, meta.Message,
+			).Finished()
 			// Continue, because despite this failure, some steps' "if" conditions
 			// may still allow them to run.
 			return true
@@ -305,9 +305,9 @@ func (o *LocalOrchestrator) determineStepCompletion(
 	timeout := step.GetTimeout(runner)
 	if timeout != nil && *timeout > 0 && metav1.Now().Sub(meta.StartedAt.Time) > *timeout {
 		// Timeout has elapsed.
-		meta.FinishedAt = ptr.To(metav1.Now())
-		meta.Status = kargoapi.PromotionStepStatusErrored
-		meta.Message = fmt.Sprintf("step %q timed out after %s", step.Alias, timeout.String())
+		meta.WithStatus(kargoapi.PromotionStepStatusErrored).WithMessagef(
+			"step %q timed out after %s", step.Alias, timeout.String(),
+		).Finished()
 		// Continue, because despite this failure, some steps' "if" conditions may
 		// still allow them to run.
 		return true
@@ -317,13 +317,12 @@ func (o *LocalOrchestrator) determineStepCompletion(
 		// Treat Errored/Failed as if the step is still running so that the
 		// Promotion will be requeued. The step will be retried on the next
 		// reconciliation.
-		meta.Message += "; step will be retried"
+		meta.WithMessagef("%s; step will be retried", meta.Message)
 		return false
 	}
 
 	// If we get to here, the step is still Running (waiting for some external
 	// condition to be met).
-	meta.ErrorCount = 0 // Reset the error count
 	return false
 }
 
